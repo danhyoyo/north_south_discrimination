@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import json
+import csv
+import io
 import logging
 import os
 from pathlib import Path
 import sys
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from virdc_stream.config import settings  # noqa: E402
-from virdc_stream.database import fetch_comments  # noqa: E402
+from virdc_stream.database import fetch_analytics, fetch_comments  # noqa: E402
 from virdc_stream.live_schema import live_stream_id, parse_live_url  # noqa: E402
 
 LIVE_URL = settings.tiktok_live_url or os.getenv("TIKTOK_LIVE_URL") or (
@@ -37,7 +39,32 @@ def read_history(path: Path, stream_id: str, limit: int = 500) -> tuple[list[dic
 
 @app.route("/")
 def index():
+    return send_file(ROOT / "web" / "overview.html")
+
+
+@app.route("/live")
+def live_page():
     return send_file(ROOT / "web" / "live.html")
+
+
+@app.route("/analytics")
+def analytics_page():
+    return send_file(ROOT / "web" / "analytics.html")
+
+
+@app.route("/data")
+def data_page():
+    return send_file(ROOT / "web" / "data.html")
+
+
+@app.route("/assets/<path:filename>")
+def assets(filename: str):
+    return send_from_directory(ROOT / "web", filename)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return Response(status=204)
 
 
 @app.route("/api/snapshot")
@@ -56,6 +83,81 @@ def snapshot():
                     "video_url": LIVE_URL, "unique_id": LIVE_USERNAME,
                     "poll_interval_seconds": status.get("interval_seconds", 5), "status": status,
                     "total": total, "comments": items})
+
+
+def _comment_filters() -> dict:
+    label = request.args.get("label") or None
+    if label not in (None, "khác", "ủng hộ", "phân biệt"):
+        label = None
+    try:
+        min_score = float(request.args["min_score"]) if request.args.get("min_score") else None
+    except ValueError:
+        min_score = None
+    return {
+        "label": label,
+        "search": request.args.get("search", "").strip() or None,
+        "min_score": min_score,
+    }
+
+
+@app.route("/api/comments")
+def comments():
+    try:
+        limit = min(500, max(1, int(request.args.get("limit", "50"))))
+        offset = max(0, int(request.args.get("offset", "0")))
+    except ValueError:
+        limit, offset = 50, 0
+    items, total = fetch_comments(
+        settings.database_path,
+        video_id=STREAM_ID,
+        source="tiktok-live",
+        limit=limit,
+        offset=offset,
+        **_comment_filters(),
+    )
+    return jsonify({"total": total, "limit": limit, "offset": offset, "comments": items})
+
+
+@app.route("/api/analytics")
+def analytics():
+    result = fetch_analytics(settings.database_path, video_id=STREAM_ID, source="tiktok-live")
+    return jsonify({"stream_id": STREAM_ID, "live_url": LIVE_URL, **result})
+
+
+def _safe_csv(value) -> str:
+    text = "" if value is None else str(value)
+    return "'" + text if text.startswith(("=", "+", "-", "@")) else text
+
+
+@app.route("/api/export.csv")
+def export_csv():
+    items, _ = fetch_comments(
+        settings.database_path,
+        video_id=STREAM_ID,
+        source="tiktok-live",
+        limit=10000,
+        **_comment_filters(),
+    )
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(("comment_id", "username", "text", "label", "score", "latency_ms", "classified_at"))
+    for item in items:
+        prediction = item.get("prediction") or {}
+        metadata = item.get("metadata") or {}
+        writer.writerow((
+            _safe_csv(item.get("comment_id")),
+            _safe_csv(metadata.get("username") or metadata.get("unique_id")),
+            _safe_csv(item.get("text")),
+            _safe_csv(prediction.get("label")),
+            prediction.get("score"),
+            item.get("latency_ms"),
+            item.get("classified_at"),
+        ))
+    return Response(
+        "\ufeff" + output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=live-comments.csv"},
+    )
 
 
 @app.route("/api/health")

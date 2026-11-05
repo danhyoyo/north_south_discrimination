@@ -6,7 +6,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from scripts.live_dashboard import read_history
-from virdc_stream.database import connect_database, save_classified_event
+from virdc_stream.database import connect_database, fetch_analytics, save_classified_event
 from virdc_stream.event_schema import build_classified_event, build_raw_event
 from virdc_stream.live_schema import live_stream_id, parse_live_url
 def test_live_url_parsing():
@@ -56,6 +56,10 @@ def test_history_only_target_live_and_latest_duplicate():
         assert total == 1
         assert items[0]["comment_id"] == "one"
         assert items[0]["prediction"]["label"] == "phân biệt"
+        analytics = fetch_analytics(path, video_id="live:target", source="tiktok-live")
+        assert analytics["summary"]["total"] == 1
+        assert analytics["summary"]["discrimination_rate"] == 1.0
+        assert analytics["labels"] == [{"label": "phân biệt", "count": 1}]
     finally:
         for item in sidecars:
             item.unlink(missing_ok=True)

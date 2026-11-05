@@ -52,7 +52,9 @@ WAL để dashboard có thể đọc dữ liệu trong lúc worker đang ghi.
 - **TikTok LIVE realtime:** nhận `CommentEvent` và `GiftEvent` bằng `TikTokLive`.
 - **PhoBERT ba lớp:** trả về nhãn, confidence, xác suất từng lớp và cờ `is_discrimination`.
 - **SQLite chống trùng:** UPSERT theo `comment_id`; mỗi bình luận chỉ có một bản ghi hiện hành.
-- **Dashboard realtime:** Flask API và giao diện tự cập nhật mỗi 2 giây.
+- **Web dashboard nhiều trang:** tổng quan, feed realtime, phân tích và tra cứu dữ liệu.
+- **Thống kê phiên LIVE:** nhãn, confidence, latency, biểu đồ theo giờ, top tài khoản và quà tặng.
+- **Lọc và xuất dữ liệu:** tìm theo nội dung/tài khoản, lọc nhãn/confidence, phân trang và xuất CSV UTF-8.
 - **Dashboard tổng hợp:** Streamlit hiển thị số lượng, tỷ lệ, latency và phân bố nhãn.
 - **Chạy thử bằng CSV:** replay dữ liệu có sẵn khi không có tài khoản đang LIVE.
 - **Pipeline huấn luyện:** tải, kiểm tra, chuẩn bị dữ liệu và fine-tune PhoBERT.
@@ -239,6 +241,15 @@ python scripts/live_dashboard.py
 
 Mở <http://127.0.0.1:8000>. Dừng từng tiến trình bằng `Ctrl+C`.
 
+Các trang web:
+
+| Đường dẫn | Chức năng |
+|---|---|
+| `/` | Tổng quan KPI, bình luận mới, phân bố nhãn và trạng thái collector |
+| `/live` | Feed bình luận tự cập nhật, tìm kiếm và lọc realtime |
+| `/analytics` | Thống kê theo giờ, confidence, tài khoản và quà tặng |
+| `/data` | Tra cứu, phân trang và xuất CSV |
+
 > Dashboard lấy phiên LIVE từ `TIKTOK_LIVE_URL` trong `.env`. Nếu truyền
 > `--live-url` cho collector, hãy bảo đảm `.env` chứa cùng URL để dashboard lọc
 > đúng `stream_id`.
@@ -306,6 +317,9 @@ Lưu các sự kiện LIVE không phải bình luận, hiện tại là gift eve
 |---|---|
 | `GET /api/health` | Kiểm tra dashboard đang hoạt động |
 | `GET /api/snapshot?limit=200` | Trạng thái collector và các dự đoán mới nhất của LIVE đang cấu hình |
+| `GET /api/comments` | Truy vấn có phân trang; hỗ trợ `search`, `label`, `min_score`, `limit`, `offset` |
+| `GET /api/analytics` | KPI, nhãn, timeline, confidence, top tài khoản và thống kê gift |
+| `GET /api/export.csv` | Xuất tối đa 10.000 bình luận theo bộ lọc hiện tại |
 
 Dashboard chỉ đọc; writer PhoBERT là tiến trình chịu trách nhiệm ghi comment.
 SQLite sử dụng `journal_mode=WAL`, `synchronous=NORMAL` và timeout 10 giây.
@@ -331,7 +345,13 @@ SQLite sử dụng `journal_mode=WAL`, `synchronous=NORMAL` và timeout 10 giây
 │   ├── model_service.py          # Load model và inference
 │   ├── preprocessing.py          # Chuẩn hóa văn bản
 │   └── event_schema.py           # Raw/classified event schema
-├── web/live.html                 # Giao diện LIVE
+├── web/
+│   ├── overview.html             # Trang tổng quan
+│   ├── live.html                 # Feed bình luận realtime
+│   ├── analytics.html            # Thống kê phiên LIVE
+│   ├── data.html                 # Tra cứu và xuất dữ liệu
+│   ├── app.css                   # Design system responsive
+│   └── common.js                 # Tiện ích giao diện dùng chung
 ├── tests/                        # Unit tests
 ├── .env.example                 # Cấu hình mẫu
 └── requirements.txt             # ML, TikTokLive, Flask và Streamlit

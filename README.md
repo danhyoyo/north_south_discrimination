@@ -6,7 +6,7 @@
 ![Storage](https://img.shields.io/badge/Storage-SQLite-003B57?logo=sqlite&logoColor=white)
 ![Model](https://img.shields.io/badge/Model-PhoBERT-2E6DB4)
 
-**Thu thập bình luận TikTok, phân loại realtime bằng PhoBERT và lưu kết quả vào một file SQLite — không cần Kafka hoặc Docker.**
+**Thu thập bình luận TikTok LIVE, phân loại realtime bằng PhoBERT và lưu kết quả vào một file SQLite — không cần Kafka hoặc Docker.**
 
 </div>
 
@@ -36,7 +36,7 @@
 
 Dự án xây dựng một pipeline nhỏ gọn cho bài tập hoặc đồ án môn học:
 
-1. Nhận bình luận từ một phiên **TikTok LIVE** hoặc đọc các bình luận đang hiển thị trên một **video TikTok**.
+1. Nhận bình luận realtime từ một phiên **TikTok LIVE**.
 2. Chuẩn hóa tiếng Việt và chạy suy luận bằng model PhoBERT đã fine-tune.
 3. Dự đoán một trong ba nhãn: `khác`, `ủng hộ`, `phân biệt`.
 4. Lưu bình luận, tài khoản, confidence, latency và toàn bộ event JSON vào SQLite.
@@ -50,7 +50,6 @@ WAL để dashboard có thể đọc dữ liệu trong lúc worker đang ghi.
 ## Tính năng
 
 - **TikTok LIVE realtime:** nhận `CommentEvent` và `GiftEvent` bằng `TikTokLive`.
-- **Video TikTok:** đọc các comment top-level đang được render trong Chrome bằng Playwright.
 - **PhoBERT ba lớp:** trả về nhãn, confidence, xác suất từng lớp và cờ `is_discrimination`.
 - **SQLite chống trùng:** UPSERT theo `comment_id`; mỗi bình luận chỉ có một bản ghi hiện hành.
 - **Dashboard realtime:** Flask API và giao diện tự cập nhật mỗi 2 giây.
@@ -66,11 +65,9 @@ WAL để dashboard có thể đọc dữ liệu trong lúc worker đang ghi.
 ```mermaid
 flowchart LR
     LIVE["TikTok LIVE"] -->|CommentEvent| COLLECTOR["LIVE Collector"]
-    VIDEO["TikTok video"] -->|Rendered comments| BROWSER["Playwright Collector"]
     CSV["CSV replay"] --> REPLAY["Replay Script"]
 
     COLLECTOR --> QUEUE["queue.Queue"]
-    BROWSER --> QUEUE
     REPLAY --> QUEUE
     QUEUE --> WORKER["PhoBERT Worker"]
     WORKER --> DB[("SQLite analysis.db")]
@@ -94,7 +91,6 @@ trong hệ thống phân tán nhiều node hoặc lưu lượng lớn.
 | Python | 3.10 trở lên | Dự án đã được kiểm tra với môi trường Python hiện có trên Windows |
 | RAM | Phụ thuộc model | PhoBERT-base cần đủ bộ nhớ để load model và suy luận |
 | GPU | Không bắt buộc | CUDA giúp train và inference nhanh hơn; CPU vẫn chạy được |
-| Chrome | Chỉ cần cho video thường | TikTok LIVE không cần mở Chrome |
 | Internet | Cần cho TikTok và tải dữ liệu/model | TikTok có thể yêu cầu đăng nhập hoặc xác minh |
 
 ---
@@ -247,19 +243,7 @@ Mở <http://127.0.0.1:8000>. Dừng từng tiến trình bằng `Ctrl+C`.
 > `--live-url` cho collector, hãy bảo đảm `.env` chứa cùng URL để dashboard lọc
 > đúng `stream_id`.
 
-### Chế độ 2 — video TikTok thông thường
-
-```powershell
-python scripts/tiktok_collector.py --video-url "https://www.tiktok.com/@username/video/123456789"
-```
-
-Thêm `--headless` nếu không cần quan sát Chrome. Tuy nhiên, lần chạy đầu nên để
-Chrome hiển thị để có thể đăng nhập hoặc hoàn tất xác minh TikTok.
-
-Collector này chỉ đọc các comment top-level đang được render trên trang; nó
-không phải API xuất toàn bộ bình luận của video.
-
-### Chế độ 3 — chạy thử bằng CSV
+### Chế độ 2 — chạy thử bằng CSV
 
 CSV cần có một trong các cột `original_sentence`, `sentence`, `text` hoặc
 `processed_text`:
@@ -275,8 +259,8 @@ python -m pip install -r requirements-dashboard.txt
 streamlit run scripts/dashboard.py
 ```
 
-Dashboard Streamlit đọc toàn bộ nguồn trong SQLite, phù hợp để xem kết quả video
-thường và dataset replay.
+Dashboard Streamlit đọc toàn bộ nguồn trong SQLite, phù hợp để xem kết quả LIVE
+và dataset replay.
 
 ---
 
@@ -297,9 +281,6 @@ CLI chính:
 | Script | Tham số | Mặc định | Ý nghĩa |
 |---|---|---|---|
 | `tiktok_live_collector.py` | `--live-url` | `.env` | Phiên LIVE cần theo dõi |
-| `tiktok_collector.py` | `--video-url` | URL demo trong code | Video cần đọc comment |
-| `tiktok_collector.py` | `--interval` | `5.0` giây | Chu kỳ kiểm tra lại trang |
-| `tiktok_collector.py` | `--headless` | Tắt | Chạy Chrome không hiển thị |
 | `replay_producer.py` | `--limit` | `0` | `0` nghĩa là đọc toàn bộ CSV |
 | `replay_producer.py` | `--delay` | `0.5` giây | Khoảng nghỉ giữa các dòng |
 
@@ -339,7 +320,6 @@ SQLite sử dụng `journal_mode=WAL`, `synchronous=NORMAL` và timeout 10 giây
 .
 ├── scripts/
 │   ├── tiktok_live_collector.py  # LIVE → queue → PhoBERT → SQLite
-│   ├── tiktok_collector.py       # Video DOM → queue → PhoBERT → SQLite
 │   ├── replay_producer.py        # CSV → queue → PhoBERT → SQLite
 │   ├── live_dashboard.py         # Flask API và realtime dashboard
 │   ├── dashboard.py              # Dashboard phân tích bằng Streamlit
@@ -356,13 +336,12 @@ SQLite sử dụng `journal_mode=WAL`, `synchronous=NORMAL` và timeout 10 giây
 ├── tests/                        # Unit tests
 ├── .env.example                 # Cấu hình mẫu
 ├── requirements.txt             # ML/data dependencies
-├── requirements-live.txt        # Flask, TikTokLive, Playwright
+├── requirements-live.txt        # Flask và TikTokLive
 └── requirements-dashboard.txt   # Streamlit dashboard
 ```
 
-Các thư mục `artifacts/`, `data/source/`, `data/results/`, `.env` và profile
-trình duyệt được bỏ khỏi Git để tránh commit model lớn, dữ liệu runtime và cấu
-hình cá nhân.
+Các thư mục `artifacts/`, `data/source/`, `data/results/` và `.env` được bỏ khỏi
+Git để tránh commit model lớn, dữ liệu runtime và cấu hình cá nhân.
 
 ---
 
@@ -376,9 +355,9 @@ python -m pip install pytest
 python -m pytest -q
 ```
 
-Bộ test kiểm tra preprocessing, schema event, chuẩn bị dữ liệu, parsing URL,
-trích xuất comment DOM, chống trùng và round-trip SQLite. Lần kiểm tra trước khi
-đưa repository lên GitHub đạt **16 tests passed**.
+Bộ test kiểm tra preprocessing, schema event, chuẩn bị dữ liệu, parsing URL LIVE,
+chống trùng và round-trip SQLite. Lần kiểm tra phiên bản LIVE-only gần nhất đạt
+**13 tests passed**.
 
 Kiểm tra riêng model:
 
@@ -394,7 +373,6 @@ python scripts/smoke_predict.py --text "một bình luận thử nghiệm"
 - `TikTokLive` là thư viện không chính thức; TikTok có thể thay đổi giao thức
   hoặc hạn chế kết nối bất kỳ lúc nào.
 - TikTok LIVE phải đang phát và có thể truy cập từ máy chạy collector.
-- Collector video chỉ thấy comment đã được TikTok render trong trình duyệt.
 - Pipeline phù hợp một máy và một worker ghi chính; không thiết kế cho nhiều node.
 - Model được train từ dữ liệu có giới hạn và có thể dự đoán sai. Kết quả không
   phải kết luận pháp lý hoặc phán xét chắc chắn về người dùng.
@@ -414,7 +392,6 @@ python scripts/smoke_predict.py --text "một bình luận thử nghiệm"
 | `Provide --live-url or set TIKTOK_LIVE_URL` | Chưa cấu hình LIVE | Thêm URL `/@username/live` vào `.env` |
 | LIVE không có comment | Tài khoản chưa LIVE, LIVE riêng tư hoặc kết nối bị TikTok chặn | Kiểm tra URL và trạng thái tại `data/state/` |
 | Dashboard không thấy dữ liệu | URL dashboard khác URL collector | Đặt cùng `TIKTOK_LIVE_URL` trong `.env` rồi khởi động lại dashboard |
-| Chrome yêu cầu kéo thanh xác minh | TikTok chống bot | Chạy không `--headless` và xác minh trực tiếp trong Chrome |
 | `Classifier queue is full` | Comment đến nhanh hơn tốc độ inference | Tăng `CLASSIFIER_QUEUE_SIZE`, dùng GPU hoặc giảm nguồn đầu vào |
 | `database is locked` | Có nhiều writer hoặc process cũ chưa dừng | Chỉ chạy một collector/classifier writer và dừng process cũ |
 

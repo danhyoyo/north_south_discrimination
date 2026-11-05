@@ -9,43 +9,6 @@ from scripts.live_dashboard import read_history
 from virdc_stream.database import connect_database, save_classified_event
 from virdc_stream.event_schema import build_classified_event, build_raw_event
 from virdc_stream.live_schema import live_stream_id, parse_live_url
-from virdc_stream.tiktok_live import extract_comments, video_id_from_url
-
-
-def test_extract_comments_and_dedupe_identity():
-    html = """<div class='DivCommentObjectWrapper'>
-      <a href='/@alice'><span data-e2e='comment-username-1'>Alice</span></a>
-      <span data-e2e='comment-level-1'>Xin chào miền Bắc</span>
-      <span data-e2e='comment-level-2'>Reply excluded</span>
-    </div>"""
-    comments = extract_comments(html, "7509503512934370568")
-    assert len(comments) == 1
-    assert comments[0]["text"] == "Xin chào miền Bắc"
-    assert comments[0]["username"] == "Alice"
-    assert comments == extract_comments(html, "7509503512934370568")
-    assert comments[0]["comment_id"] != extract_comments(html, "999")[0]["comment_id"]
-
-
-def test_extract_tiktok_author_wrapper():
-    html = """<div class='css-abc--DivCommentObjectWrapper xyz'>
-      <div data-e2e='comment-username-1'><div><a href='/@gronrav'><p>Grön Räv</p></a></div><p>· Creator</p></div>
-      <span data-e2e='comment-level-1'>ủa dc k ta</span>
-    </div>"""
-    item = extract_comments(html, "7509503512934370568")[0]
-    assert item["username"] == "Grön Räv"
-    assert item["profile_url"] == "/@gronrav"
-
-
-def test_video_url_validation():
-    assert video_id_from_url("https://www.tiktok.com/@gronrav/video/7509503512934370568") == "7509503512934370568"
-    try:
-        video_id_from_url("https://example.com/@gronrav/video/7509503512934370568")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("Unexpected host accepted")
-
-
 def test_live_url_parsing():
     assert parse_live_url("https://www.tiktok.com/@creator/live") == "creator"
     assert parse_live_url("@creator") == "creator"

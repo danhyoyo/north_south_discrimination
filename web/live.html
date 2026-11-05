@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ViRDC Live · Theo dõi bình luận</title>
+  <style>
+    :root { font-family: "Segoe UI", Arial, sans-serif; color: #192538; background: #f5f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #112a43; color: white; padding: 22px max(22px, calc((100vw - 1160px)/2)); }
+    .brand { font-size: 23px; font-weight: 750; letter-spacing: -.03em; }
+    .brand span { color: #67d6c3; }
+    .sub { color: #c6d5e2; margin-top: 6px; font-size: 14px; }
+    main { max-width: 1160px; margin: 0 auto; padding: 26px 22px 50px; }
+    .overview { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    .card { background: white; border: 1px solid #e1e8ef; border-radius: 14px; padding: 19px; box-shadow: 0 3px 12px #17304908; }
+    .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: #65788b; text-transform: uppercase; }
+    .video-title { font-size: 17px; font-weight: 650; margin: 10px 0; overflow-wrap: anywhere; }
+    a { color: #117b86; text-decoration: none; } a:hover { text-decoration: underline; }
+    .number { font-size: 31px; font-weight: 720; margin-top: 8px; }
+    .status { display: inline-flex; align-items: center; gap: 7px; font-weight: 650; margin-top: 10px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #f2a33b; }
+    .status.running .dot, .status.connected .dot { background: #20a887; } .status.error .dot, .status.disconnected .dot { background: #db5962; }
+    .status.verification_required .dot { background: #e4962c; }
+    .minor { color: #65788b; font-size: 12px; margin-top: 8px; }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin: 0 0 13px; }
+    h1 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
+    .tools { display: flex; gap: 9px; }
+    input, select { font: inherit; color: #24374b; background: white; border: 1px solid #ccd8e3; border-radius: 8px; padding: 9px 11px; }
+    input { width: 220px; }
+    .list { display: grid; gap: 10px; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) 230px; overflow: hidden; padding: 0; }
+    .comment { padding: 17px 20px; min-width: 0; }
+    .author { font-weight: 700; font-size: 13px; color: #416078; }
+    .text { margin: 8px 0 9px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .time { font-size: 12px; color: #789; }
+    .prediction { border-left: 1px solid #e1e8ef; padding: 17px 20px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+    .label { display: inline-block; width: fit-content; padding: 5px 9px; border-radius: 20px; background: #e6f6f1; color: #116753; font-size: 13px; font-weight: 700; }
+    .label.positive { background: #fff0eb; color: #b44931; }
+    .score { color: #607588; font-size: 12px; }
+    .empty { text-align: center; padding: 62px 20px; color: #607588; }
+    .empty strong { display: block; color: #24374b; font-size: 17px; margin-bottom: 8px; }
+    .error-text { color: #af3d43; overflow-wrap: anywhere; }
+    @media(max-width: 740px) { .overview { grid-template-columns: 1fr 1fr; } .overview .card:first-child { grid-column: 1 / -1; } .section-head { align-items: stretch; flex-direction: column; } .tools { flex-wrap: wrap; } .row { grid-template-columns: 1fr; } .prediction { border-left: 0; border-top: 1px solid #e1e8ef; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand">ViRDC <span>LIVE</span></div><div class="sub">Bình luận TikTok LIVE và dự đoán PhoBERT theo thời gian thực</div></header>
+  <main>
+    <div class="overview">
+      <div class="card"><div class="eyebrow">LIVE đang theo dõi</div><div class="video-title" id="video-id">Đang tải…</div><a id="video-link" target="_blank" rel="noopener noreferrer">Mở LIVE ↗</a></div>
+      <div class="card"><div class="eyebrow">Đã phân loại</div><div class="number" id="total">0</div><div class="minor">Bình luận duy nhất trong lịch sử</div></div>
+      <div class="card"><div class="eyebrow">Bộ thu thập</div><div id="status" class="status"><span class="dot"></span><span>Đang chờ</span></div><div class="minor" id="last-check">Chưa có lần kiểm tra</div></div>
+    </div>
+    <div class="section-head"><div><div class="eyebrow">Lịch sử</div><h1>Bình luận và dự đoán</h1></div><div class="tools"><input id="search" type="search" placeholder="Tìm bình luận hoặc tài khoản" aria-label="Tìm kiếm"><select id="filter" aria-label="Lọc dự đoán"><option value="all">Tất cả</option><option value="positive">Phân biệt vùng miền</option><option value="negative">Không phân biệt</option></select></div></div>
+    <div id="list" class="list" aria-live="polite"></div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    let snapshot = null;
+    const date = value => { if (!value) return 'Không rõ thời gian'; const d = new Date(value); return Number.isNaN(d.valueOf()) ? value : d.toLocaleString('vi-VN'); };
+    function render() {
+      if (!snapshot) return;
+      const { video_id, video_url, status, comments, total } = snapshot;
+      const account = new URL(video_url).pathname.split('/').filter(Boolean)[0] || 'TikTok';
+      $('video-id').textContent = `${account} · ${video_id}`;
+      $('video-link').href = video_url;
+      $('total').textContent = total.toLocaleString('vi-VN');
+      const state = status.state || 'waiting';
+      $('status').className = `status ${state}`;
+      $('status').querySelector('span:last-child').textContent = ({running:'Đang theo dõi',connected:'Đang theo dõi',disconnected:'Đã ngắt kết nối',error:'Có lỗi',checking:'Đang kiểm tra',connecting:'Đang kết nối',waiting:'Đang chờ',verification_required:'Cần xác minh TikTok'})[state] || state;
+      const observed = status.comments_received == null ? 'Chưa nhận bình luận từ collector' : `Đã nhận ${status.comments_received || 0} bình luận`;
+      $('last-check').textContent = status.checked_at ? `Kiểm tra: ${date(status.checked_at)} · ${observed}` : 'Chưa khởi động bộ thu thập';
+      if (status.error) $('last-check').textContent += ` · ${status.error}`;
+      const term = $('search').value.trim().toLocaleLowerCase('vi-VN');
+      const filter = $('filter').value;
+      const shown = comments.filter(item => {
+        const positive = !!item.prediction?.is_discrimination;
+        if (filter === 'positive' && !positive || filter === 'negative' && positive) return false;
+        return `${item.text || ''} ${item.metadata?.username || ''}`.toLocaleLowerCase('vi-VN').includes(term);
+      });
+      const list = $('list'); list.replaceChildren();
+      if (!shown.length) {
+        const box = document.createElement('div'); box.className = 'card empty';
+        const title = document.createElement('strong'); title.textContent = comments.length ? 'Không có bình luận phù hợp' : 'Chưa có bình luận được phân loại';
+        const description = document.createElement('div'); description.textContent = comments.length ? 'Thử thay đổi từ khóa hoặc bộ lọc.' : state === 'verification_required' ? 'TikTok đang yêu cầu xác minh. Hãy hoàn tất xác minh rồi bộ thu thập sẽ tiếp tục.' : 'Trang sẽ tự cập nhật khi bộ thu thập nhận bình luận mới từ LIVE.';
+        box.append(title, description); list.append(box); return;
+      }
+      for (const item of shown) {
+        const row = document.createElement('article'); row.className = 'card row';
+        const comment = document.createElement('div'); comment.className = 'comment';
+        const author = document.createElement('div'); author.className = 'author'; author.textContent = item.metadata?.username || 'Người dùng TikTok';
+        const body = document.createElement('div'); body.className = 'text'; body.textContent = item.text || '';
+        const time = document.createElement('div'); time.className = 'time'; time.textContent = `Thu thập ${date(item.ingested_at)} · Dự đoán ${date(item.classified_at)}`;
+        comment.append(author, body, time);
+        const prediction = document.createElement('div'); prediction.className = 'prediction';
+        const caption = document.createElement('div'); caption.className = 'eyebrow'; caption.textContent = 'Dự đoán của mô hình';
+        const label = document.createElement('div'); label.className = `label ${item.prediction?.is_discrimination ? 'positive' : ''}`; label.textContent = item.prediction?.is_discrimination ? 'Phân biệt vùng miền' : 'Không phân biệt';
+        const score = document.createElement('div'); score.className = 'score'; score.textContent = `Độ tin cậy ${Math.round((item.prediction?.score || 0)*100)}%`;
+        prediction.append(caption, label, score); row.append(comment, prediction); list.append(row);
+      }
+    }
+    async function refresh() {
+      try { const response = await fetch('/api/snapshot?limit=1000', {cache:'no-store'}); if (!response.ok) throw Error(`HTTP ${response.status}`); snapshot = await response.json(); render(); }
+      catch (error) { $('status').className = 'status error'; $('status').querySelector('span:last-child').textContent = 'Mất kết nối'; $('last-check').textContent = String(error); }
+    }
+    $('search').addEventListener('input', render); $('filter').addEventListener('change', render);
+    refresh(); setInterval(refresh, 2000);
+  </script>
+</body>
+</html>

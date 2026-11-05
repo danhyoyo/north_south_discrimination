@@ -6,3 +6,6 @@ transformers>=4.46,<5.0
 accelerate>=1.0,<2.0
 underthesea>=6.8,<7.0
 python-dotenv>=1.0,<2.0
+flask>=3.0,<4.0
+TikTokLive==7.0.1
+streamlit>=1.40,<2.0

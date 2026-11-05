@@ -113,7 +113,7 @@ Windows PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-live.txt
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
@@ -123,7 +123,7 @@ macOS/Linux:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements-live.txt
+python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
@@ -255,7 +255,6 @@ python scripts/replay_producer.py --file data/processed/test.csv --limit 100 --d
 ### Dashboard tổng hợp
 
 ```powershell
-python -m pip install -r requirements-dashboard.txt
 streamlit run scripts/dashboard.py
 ```
 
@@ -335,9 +334,7 @@ SQLite sử dụng `journal_mode=WAL`, `synchronous=NORMAL` và timeout 10 giây
 ├── web/live.html                 # Giao diện LIVE
 ├── tests/                        # Unit tests
 ├── .env.example                 # Cấu hình mẫu
-├── requirements.txt             # ML/data dependencies
-├── requirements-live.txt        # Flask và TikTokLive
-└── requirements-dashboard.txt   # Streamlit dashboard
+└── requirements.txt             # ML, TikTokLive, Flask và Streamlit
 ```
 
 Các thư mục `artifacts/`, `data/source/`, `data/results/` và `.env` được bỏ khỏi

@@ -39,7 +39,7 @@ def main() -> None:
         from TikTokLive import TikTokLiveClient
         from TikTokLive.events import CommentEvent, ConnectEvent, DisconnectEvent, GiftEvent
     except ImportError as exc:
-        raise SystemExit("TikTokLive chưa cài. Chạy: python -m pip install -r requirements-live.txt") from exc
+        raise SystemExit("TikTokLive chưa cài. Chạy: python -m pip install -r requirements.txt") from exc
 
     worker = SQLiteClassifierWorker(
         model_path=settings.model_path,

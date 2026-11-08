@@ -107,7 +107,27 @@ git clone https://github.com/danhyoyo/north_south_discrimination.git
 cd north_south_discrimination
 ```
 
-### 2. Tạo môi trường Python
+### 2. Tải model bằng Git LFS
+
+Model PhoBERT inference được lưu bằng [Git LFS](https://git-lfs.com/) vì file
+`model.safetensors` có kích thước khoảng 540 MB. Cài Git LFS một lần trên máy,
+sau đó chạy trong thư mục repository:
+
+```powershell
+git lfs install
+git lfs pull
+```
+
+Sau bước này phải tồn tại file:
+
+```text
+artifacts/phobert/model.safetensors
+```
+
+Nếu bỏ qua `git lfs pull`, Git chỉ có pointer nhỏ thay cho model thật và
+`smoke_predict.py` sẽ báo thiếu hoặc không đọc được model.
+
+### 3. Tạo môi trường Python
 
 Windows PowerShell:
 
@@ -131,7 +151,7 @@ cp .env.example .env
 
 SQLite có sẵn trong thư viện chuẩn Python; không cần cài database server.
 
-### 3. Cấu hình URL và model
+### 4. Cấu hình URL và model
 
 Mở `.env`:
 
@@ -142,9 +162,11 @@ CLASSIFIER_QUEUE_SIZE=1000
 TIKTOK_LIVE_URL=https://www.tiktok.com/@username/live
 ```
 
-Đặt model đã xuất vào `artifacts/phobert`, hoặc train theo phần tiếp theo.
+Model đã được tải ở bước Git LFS; chỉ cần sửa URL LIVE trong `.env`. Nếu muốn
+thay model, đặt thư mục model tương thích vào `artifacts/phobert` hoặc train
+theo phần tiếp theo.
 
-### 4. Kiểm tra model
+### 5. Kiểm tra model
 
 ```powershell
 python scripts/smoke_predict.py --text "một bình luận thử nghiệm"
@@ -153,8 +175,8 @@ python scripts/smoke_predict.py --text "một bình luận thử nghiệm"
 Khi thành công, lệnh trả về JSON chứa `label`, `score`, `probabilities` và
 `normalized_text`.
 
-> Model và checkpoint không được commit lên GitHub vì file model thành phẩm lớn
-> khoảng 540 MB, vượt giới hạn file thông thường của GitHub.
+> Model inference được commit bằng Git LFS. Các checkpoint huấn luyện trung gian
+> vẫn không được đưa lên repository để tránh làm repository phình to.
 
 ---
 

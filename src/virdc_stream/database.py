@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -54,6 +55,7 @@ def connect_database(path: str | Path) -> sqlite3.Connection:
 
 def save_classified_event(connection: sqlite3.Connection, event: dict[str, Any]) -> None:
     prediction = event["prediction"]
+    score = prediction["score"]
     metadata = event.get("metadata") or {}
     connection.execute(
         """
@@ -84,7 +86,8 @@ def save_classified_event(connection: sqlite3.Connection, event: dict[str, Any])
             str(event["text"]),
             metadata.get("username") or metadata.get("unique_id"),
             str(prediction["label"]),
-            float(prediction["score"]),
+            # Existing SQLite tables require a non-null score. The JSON keeps null.
+            -1.0 if score is None else float(score),
             int(bool(prediction["is_discrimination"])),
             float(event["latency_ms"]),
             str(event["ingested_at"]),
@@ -117,6 +120,10 @@ def save_live_event(path: str | Path, event: dict[str, Any]) -> None:
         connection.close()
 
 
+def _search_key(value: str | None) -> str:
+    return unicodedata.normalize("NFC", (value or "").casefold())
+
+
 def fetch_comments(
     path: str | Path,
     *,
@@ -142,11 +149,12 @@ def fetch_comments(
             conditions.append("label = ?")
             parameters.append(label)
         if search:
-            conditions.append("(text LIKE ? COLLATE NOCASE OR username LIKE ? COLLATE NOCASE)")
-            pattern = f"%{search.strip()}%"
-            parameters.extend((pattern, pattern))
+            connection.create_function("search_key", 1, _search_key, deterministic=True)
+            conditions.append("(instr(search_key(text), ?) > 0 OR instr(search_key(username), ?) > 0)")
+            needle = _search_key(search.strip())
+            parameters.extend((needle, needle))
         if min_score is not None:
-            conditions.append("score >= ?")
+            conditions.append("score >= 0 AND score >= ?")
             parameters.append(float(min_score))
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         total = int(connection.execute(
@@ -172,8 +180,9 @@ def fetch_summary(path: str | Path) -> dict[str, Any]:
         row = connection.execute(
             """
             SELECT COUNT(*) AS total,
+                   COUNT(CASE WHEN score >= 0 THEN 1 END) AS classified,
                    SUM(is_discrimination) AS discrimination,
-                   AVG(latency_ms) AS average_latency_ms
+                   AVG(CASE WHEN score >= 0 THEN latency_ms END) AS average_latency_ms
             FROM classified_comments
             """
         ).fetchone()
@@ -187,6 +196,7 @@ def fetch_summary(path: str | Path) -> dict[str, Any]:
         connection.close()
     return {
         "total": int(row["total"] or 0),
+        "classified": int(row["classified"] or 0),
         "discrimination": int(row["discrimination"] or 0),
         "average_latency_ms": float(row["average_latency_ms"] or 0.0),
         "labels": labels,
@@ -214,9 +224,10 @@ def fetch_analytics(
         summary = connection.execute(
             f"""
             SELECT COUNT(*) AS total,
+                   COUNT(CASE WHEN score >= 0 THEN 1 END) AS classified,
                    SUM(is_discrimination) AS discrimination,
-                   AVG(score) AS average_score,
-                   AVG(latency_ms) AS average_latency_ms,
+                   AVG(CASE WHEN score >= 0 THEN score END) AS average_score,
+                   AVG(CASE WHEN score >= 0 THEN latency_ms END) AS average_latency_ms,
                    MIN(classified_at) AS first_classified_at,
                    MAX(classified_at) AS last_classified_at
             FROM classified_comments {where}
@@ -263,6 +274,7 @@ def fetch_analytics(
                 parameters,
             )
         ]
+        confidence_where = f"{where} AND score >= 0" if where else "WHERE score >= 0"
         confidence = [
             {"bucket": row["bucket"], "count": int(row["count"])}
             for row in connection.execute(
@@ -275,7 +287,7 @@ def fetch_analytics(
                 END AS bucket,
                 COUNT(*) AS count,
                 MIN(score) AS ordering
-                FROM classified_comments {where}
+                FROM classified_comments {confidence_where}
                 GROUP BY bucket ORDER BY ordering
                 """,
                 parameters,
@@ -303,12 +315,14 @@ def fetch_analytics(
             gifters.add(giver)
 
     total = int(summary["total"] or 0)
+    classified = int(summary["classified"] or 0)
     discrimination = int(summary["discrimination"] or 0)
     return {
         "summary": {
             "total": total,
+            "classified": classified,
             "discrimination": discrimination,
-            "discrimination_rate": discrimination / total if total else 0.0,
+            "discrimination_rate": discrimination / classified if classified else 0.0,
             "average_score": float(summary["average_score"] or 0.0),
             "average_latency_ms": float(summary["average_latency_ms"] or 0.0),
             "first_classified_at": summary["first_classified_at"],

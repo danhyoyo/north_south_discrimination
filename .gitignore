@@ -18,3 +18,25 @@ data/processed/*.csv
 artifacts/data_report.json
 data/state/
 vendor/playwright/
+
+# Local experiments and presentation material
+train_*.ipynb
+!train_binary_phobert_colab.ipynb
+scripts/train_*.py
+scripts/download_dataset.py
+scripts/prepare_data.py
+scripts/validate_dataset.py
+scripts/replay_producer.py
+scripts/dashboard.py
+src/virdc_stream/data_prep.py
+src/virdc_stream/merged_training_data.py
+tests/
+slide_preview/
+*.pptx
+build_*_presentation.py
+build_training_slides.py
+LIVE_PIPELINE_GUIDE.md
+PROJECT_STATUS.md
+bootstrap_*.sh
+bootstrap_*.ps1
+pytest.ini

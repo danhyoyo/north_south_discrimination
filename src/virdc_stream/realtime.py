@@ -91,8 +91,9 @@ class SQLiteClassifierWorker:
                     )
                     save_classified_event(connection, classified)
                     with self._lock:
-                        self._stats["classified"] += 1
-                        self._stats["last_classified_at"] = utc_now_iso()
+                        if prediction["score"] is not None:
+                            self._stats["classified"] += 1
+                            self._stats["last_classified_at"] = utc_now_iso()
                         self._stats["last_error"] = None
                 except Exception as exc:
                     with self._lock:

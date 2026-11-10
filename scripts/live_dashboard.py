@@ -1,4 +1,4 @@
-"""Small read-only web dashboard for one TikTok LIVE stream."""
+"""Web dashboard for one TikTok LIVE stream and standalone predictions."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+from threading import Lock
 
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
@@ -17,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from virdc_stream.config import settings  # noqa: E402
 from virdc_stream.database import fetch_analytics, fetch_comments  # noqa: E402
+from virdc_stream.event_schema import UNCLASSIFIED_LABEL  # noqa: E402
 from virdc_stream.live_schema import live_stream_id, parse_live_url  # noqa: E402
 
 LIVE_URL = settings.tiktok_live_url or os.getenv("TIKTOK_LIVE_URL") or (
@@ -26,6 +28,8 @@ LIVE_USERNAME = parse_live_url(LIVE_URL)
 STREAM_ID = live_stream_id(LIVE_USERNAME)
 STATUS_PATH = ROOT / "data" / "state" / f"tiktok_live_status_{LIVE_USERNAME.lower()}.json"
 app = Flask(__name__)
+_manual_model = None
+_manual_model_lock = Lock()
 
 
 def read_history(path: Path, stream_id: str, limit: int = 500) -> tuple[list[dict], int]:
@@ -67,6 +71,29 @@ def favicon():
     return Response(status=204)
 
 
+@app.post("/api/predict")
+def predict_comment():
+    global _manual_model
+
+    payload = request.get_json(silent=True)
+    text = payload.get("text") if isinstance(payload, dict) else None
+    if not isinstance(text, str) or not text.strip():
+        return jsonify(error="Vui lòng nhập nội dung bình luận."), 400
+
+    try:
+        with _manual_model_lock:
+            if _manual_model is None:
+                # The dashboard can display LIVE data without loading PhoBERT.
+                from virdc_stream.model_service import ModelService
+
+                _manual_model = ModelService(settings.model_path)
+            prediction = _manual_model.predict(text)
+    except Exception:
+        app.logger.exception("Manual comment prediction failed")
+        return jsonify(error="Không thể dự đoán. Hãy kiểm tra mô hình PhoBERT trên máy chủ."), 503
+    return jsonify(prediction)
+
+
 @app.route("/api/snapshot")
 def snapshot():
     try:
@@ -87,7 +114,7 @@ def snapshot():
 
 def _comment_filters() -> dict:
     label = request.args.get("label") or None
-    if label not in (None, "khác", "ủng hộ", "phân biệt"):
+    if label not in (None, "khác", "ủng hộ", "phân biệt", UNCLASSIFIED_LABEL):
         label = None
     try:
         min_score = float(request.args["min_score"]) if request.args.get("min_score") else None

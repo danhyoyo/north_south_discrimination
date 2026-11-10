@@ -8,6 +8,7 @@ from typing import Any
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from .event_schema import UNCLASSIFIED_LABEL
 from .phobert import LABELS, segment_text
 from .preprocessing import PREPROCESSING_VERSION, normalize_text
 
@@ -36,8 +37,25 @@ class ModelService:
         self.model_version = metadata["model_version"]
         self.positive_label = metadata["positive_label"]
         self.max_length = int(metadata["max_length"])
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path, use_fast=False)
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
+
+        load_path = self.model_path
+        if not (load_path / "config.json").is_file():
+            # A training-run directory stores the exported metadata at its root
+            # and the best Hugging Face model under checkpoints/checkpoint-*/.
+            trainer_state_path = self.model_path / "trainer_state.json"
+            if not trainer_state_path.is_file():
+                raise FileNotFoundError(f"PhoBERT model files not found at {self.model_path}")
+            trainer_state = json.loads(trainer_state_path.read_text(encoding="utf-8"))
+            best_checkpoint = trainer_state.get("best_model_checkpoint")
+            if not best_checkpoint:
+                raise FileNotFoundError(f"Best PhoBERT checkpoint not recorded in {trainer_state_path}")
+            checkpoint_name = str(best_checkpoint).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+            load_path = self.model_path / "checkpoints" / checkpoint_name
+            if not (load_path / "config.json").is_file():
+                raise FileNotFoundError(f"Best PhoBERT checkpoint not found at {load_path}")
+
+        self.tokenizer = AutoTokenizer.from_pretrained(load_path, use_fast=False)
+        self.model = AutoModelForSequenceClassification.from_pretrained(load_path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.model.eval()
@@ -45,7 +63,13 @@ class ModelService:
     def predict(self, text: str) -> dict[str, Any]:
         normalized = normalize_text(text)
         if not normalized:
-            raise ValueError("Text becomes empty after preprocessing")
+            return {
+                "label": UNCLASSIFIED_LABEL,
+                "score": None,
+                "is_discrimination": False,
+                "probabilities": {},
+                "normalized_text": normalized,
+            }
         encoded = self.tokenizer(segment_text(normalized), return_tensors="pt", truncation=True, max_length=self.max_length)
         encoded = {key: value.to(self.device) for key, value in encoded.items()}
         with torch.inference_mode():

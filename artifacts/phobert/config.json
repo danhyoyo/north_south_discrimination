@@ -29,7 +29,6 @@
   "num_hidden_layers": 12,
   "pad_token_id": 1,
   "position_embedding_type": "absolute",
-  "problem_type": "single_label_classification",
   "tokenizer_class": "PhobertTokenizer",
   "transformers_version": "4.57.6",
   "type_vocab_size": 1,

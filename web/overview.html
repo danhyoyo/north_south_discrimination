@@ -5,7 +5,19 @@
 <header class="topbar"><div><div class="eyebrow">Bảng điều hành</div><h1 class="page-title">Tổng quan phiên LIVE</h1></div><div class="live-pill" data-live-status><span class="live-dot"></span><span data-status-label>Đang chờ</span></div></header>
 <div class="content">
   <section class="hero"><div class="hero-copy"><div class="eyebrow">Phân tích ngôn ngữ realtime</div><h2>Nhìn thấy tín hiệu trong dòng bình luận.</h2><p>Theo dõi nhịp hội thoại, mức cảnh báo phân biệt vùng miền và độ tin cậy của PhoBERT trong một góc nhìn.</p></div><div class="hero-status"><div><div class="eyebrow">Kênh đang theo dõi</div><div class="stream-name" id="stream-name">Đang tải…</div><div class="muted mono" id="stream-id">—</div></div><a class="button" id="live-link" href="/live">Mở luồng bình luận</a></div></section>
+  <section class="panel manual-prediction" aria-labelledby="manual-title">
+    <div class="panel-head"><div><div class="eyebrow">PhoBERT</div><h2 id="manual-title">Dự đoán thủ công</h2></div></div>
+    <form id="manual-form" action="/api/predict" method="post">
+      <div class="field">
+        <label for="manual-text">Bình luận</label>
+        <textarea id="manual-text" name="text" rows="3" placeholder="Nhập hoặc dán bình luận tiếng Việt…" aria-describedby="manual-help" required></textarea>
+        <small class="muted" id="manual-help">Kết quả thử được hiển thị tại đây và tách riêng khỏi dữ liệu TikTok LIVE.</small>
+      </div>
+      <button class="button" type="submit">Dự đoán</button>
+    </form>
+    <div class="manual-result" id="manual-result" role="status"></div>
+  </section>
   <section class="kpi-grid"><div class="kpi"><div class="kpi-label">Đã phân loại</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-note">Bình luận duy nhất</div></div><div class="kpi accent-coral"><div class="kpi-label">Phân biệt</div><div class="kpi-value" id="kpi-rate">0%</div><div class="kpi-note" id="kpi-alert-count">0 bình luận</div></div><div class="kpi accent-cyan"><div class="kpi-label">Độ tin cậy TB</div><div class="kpi-value" id="kpi-confidence">0%</div><div class="kpi-note">Xác suất lớp dự đoán</div></div><div class="kpi"><div class="kpi-label">Latency TB</div><div class="kpi-value" id="kpi-latency">0 ms</div><div class="kpi-note">Thời gian inference</div></div></section>
   <section class="grid-2"><div class="panel"><div class="panel-head"><div><div class="eyebrow">Mới nhất</div><h2>Dòng bình luận gần đây</h2></div><a class="link" href="/live">Xem realtime →</a></div><div class="comment-list" id="recent-comments"></div></div><div class="panel"><div class="panel-head"><div><div class="eyebrow">Cơ cấu</div><h2>Phân bố nhãn</h2></div></div><div class="bars" id="label-bars"></div></div></section>
   <section class="grid-equal"><div class="panel"><div class="panel-head"><div><div class="eyebrow">Cộng đồng</div><h2>Tài khoản hoạt động</h2></div><a class="link" href="/analytics">Phân tích sâu →</a></div><div class="ranking" id="top-users"></div></div><div class="panel"><div class="panel-head"><div><div class="eyebrow">Vận hành</div><h2>Trạng thái collector</h2></div></div><div class="ranking" id="collector-stats"></div></div></section>
-</div></main></div><script src="/assets/common.js"></script><script src="/assets/overview.js"></script></body></html>
+</div></main></div><script src="/assets/common.js"></script><script src="/assets/manual_prediction.js"></script><script src="/assets/overview.js"></script></body></html>

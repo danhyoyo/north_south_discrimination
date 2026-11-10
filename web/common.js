@@ -1,12 +1,13 @@
 const App = (() => {
   const number = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
   const percent = value => `${(Number(value || 0) * 100).toFixed(1)}%`;
+  const confidence = value => value == null ? '—' : percent(value);
   const date = value => {
     if (!value) return 'Chưa có dữ liệu';
     const parsed = new Date(value);
     return Number.isNaN(parsed.valueOf()) ? String(value) : parsed.toLocaleString('vi-VN');
   };
-  const labelName = value => ({'phân biệt':'Phân biệt','ủng hộ':'Ủng hộ','khác':'Khác'})[value] || value || 'Không rõ';
+  const labelName = value => ({'phân biệt':'Phân biệt','ủng hộ':'Ủng hộ','khác':'Khác','chưa phân loại':'Chưa phân loại'})[value] || value || 'Không rõ';
   const badgeClass = value => value === 'phân biệt' ? 'discrimination' : value === 'ủng hộ' ? 'support' : '';
   async function get(url) {
     const response = await fetch(url, {cache:'no-store'});
@@ -50,8 +51,8 @@ const App = (() => {
     main.append(author,text,time);
     const prediction = document.createElement('div'); prediction.className = 'prediction';
     const badge = document.createElement('span'); badge.className = `badge ${badgeClass(item.prediction?.label)}`; badge.textContent = labelName(item.prediction?.label);
-    const score = document.createElement('span'); score.className = 'muted mono'; score.textContent = `Tin cậy ${percent(item.prediction?.score)}`;
+    const score = document.createElement('span'); score.className = 'muted mono'; score.textContent = `Tin cậy ${confidence(item.prediction?.score)}`;
     prediction.append(badge,score); card.append(main,prediction); return card;
   }
-  return {number,percent,date,labelName,badgeClass,get,setStatus,empty,renderBars,commentCard};
+  return {number,percent,confidence,date,labelName,badgeClass,get,setStatus,empty,renderBars,commentCard};
 })();

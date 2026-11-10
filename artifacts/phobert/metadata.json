@@ -1,15 +1,31 @@
 {
-  "model_version": "phobert-base-v2-finetuned-v1",
+  "model_version": "phobert_3class_20261110_170724",
   "base_model": "vinai/phobert-base-v2",
   "positive_label": "phân biệt",
-  "preprocessing_version": "social-clean-v2",
-  "segmentation": "published-vncorenlp",
-  "protocol": "upstream",
-  "max_length": 256,
-  "trained_at": "2026-10-01T16:10:06.728122Z",
   "known_labels": [
     "khác",
     "ủng hộ",
     "phân biệt"
-  ]
+  ],
+  "preprocessing_version": "social-clean-v2",
+  "segmentation": "underthesea-word_tokenize-text",
+  "max_length": 256,
+  "seed": 42,
+  "max_epochs": 10,
+  "completed_epochs": 5.0,
+  "early_stopping_patience": 2,
+  "class_weights": {
+    "khác": 0.43849021196365356,
+    "ủng hộ": 10.647401809692383,
+    "phân biệt": 1.5986502170562744
+  },
+  "train_rows": 18239,
+  "train_augmentation": {
+    "method": "accentless-variants",
+    "original_rows": 9301,
+    "added_rows": 8938
+  },
+  "validation_rows": 1071,
+  "test_rows": 1071,
+  "saved_at_utc": "2026-11-10T17:13:12.099651+00:00"
 }

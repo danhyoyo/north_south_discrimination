@@ -6,6 +6,7 @@ from uuid import uuid4
 
 
 RAW_REQUIRED_FIELDS = ("event_id", "comment_id", "text", "source", "ingested_at")
+UNCLASSIFIED_LABEL = "chưa phân loại"
 
 
 def utc_now_iso() -> str:

@@ -60,9 +60,25 @@ python .\scripts\smoke_predict.py --text "nam kì"
 
 Để chia sẻ dashboard tạm thời, chạy `ngrok http 8000` ở terminal thứ ba sau khi Flask đã chạy. URL ngrok đưa dashboard ra internet; ứng dụng hiện chưa có xác thực.
 
-## Huấn luyện trên Colab
+## Huấn luyện
 
-Mở [train_binary_phobert_colab.ipynb](train_binary_phobert_colab.ipynb) trong Colab và làm theo các cell. Notebook giữ câu gốc và bổ sung biến thể bỏ dấu vào tập train. Dữ liệu đầu vào, checkpoint và model sinh ra khi huấn luyện không được commit. Sau khi huấn luyện, xuất model tốt nhất cùng tokenizer và metadata vào một thư mục dùng cho `MODEL_PATH`.
+Notebook [train_binary_phobert_colab.ipynb](train_binary_phobert_colab.ipynb) dùng
+`src/virdc_stream/merged_training_data.py` để gộp và chia dữ liệu, giữ câu gốc
+và thêm biến thể bỏ dấu vào tập train. Mở Jupyter từ thư mục gốc của repository.
+Notebook hiện dùng đường dẫn dự án cục bộ, nên khi chạy trên Colab cần tải
+repository và đặt thư mục làm việc vào gốc dự án trước khi chạy các cell.
+
+Dữ liệu đầu vào của notebook được lưu trong repository:
+
+- `data/processed/{train,val,test}.csv`: dữ liệu cũ.
+- `data/add4000/processed/{train,val,test}.csv`: dữ liệu bổ sung.
+- `data/source/*.csv`: bộ dữ liệu gốc cho pipeline
+  `scripts/download_dataset.py`, `scripts/validate_dataset.py` và
+  `scripts/prepare_data.py`. Các script này dùng
+  `src/virdc_stream/data_prep.py`.
+
+Checkpoint trung gian và `artifacts/training_runs/` không được commit.
+Model suy luận cuối cùng được lưu riêng tại `artifacts/phobert/` bằng Git LFS.
 
 ## Dữ liệu và API
 

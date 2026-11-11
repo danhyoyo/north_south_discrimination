@@ -6,15 +6,12 @@ __pycache__/
 .DS_Store
 artifacts/*
 !artifacts/.gitkeep
-data/source/*
-!data/source/.gitkeep
 data/results/*
 !data/results/.gitkeep
 *.db
 *.db-shm
 *.db-wal
 
-data/processed/*.csv
 artifacts/data_report.json
 data/state/
 vendor/playwright/
@@ -23,13 +20,8 @@ vendor/playwright/
 train_*.ipynb
 !train_binary_phobert_colab.ipynb
 scripts/train_*.py
-scripts/download_dataset.py
-scripts/prepare_data.py
-scripts/validate_dataset.py
 scripts/replay_producer.py
 scripts/dashboard.py
-src/virdc_stream/data_prep.py
-src/virdc_stream/merged_training_data.py
 tests/
 slide_preview/
 *.pptx
